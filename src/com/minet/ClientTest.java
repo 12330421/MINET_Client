@@ -2,7 +2,7 @@ package com.minet;
 import java.io.IOException;
 import java.net.UnknownHostException;
 
-public class ClientTest1 {
+public class ClientTest {
 
 	public static void main(String[] args) throws UnknownHostException,
 			IOException {
