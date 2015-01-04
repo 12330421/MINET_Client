@@ -15,7 +15,7 @@ import jdk.internal.org.objectweb.asm.tree.IntInsnNode;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
+//ClientThread
 public class ClientThread extends Thread {
 	private ProtocolHelper helper;
 	private String action;
