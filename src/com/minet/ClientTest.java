@@ -1,12 +1,18 @@
 package com.minet;
-import java.io.IOException;
-import java.net.UnknownHostException;
+
+import java.awt.EventQueue;
 
 public class ClientTest {
 
-	public static void main(String[] args) throws UnknownHostException,
-			IOException {
-		// TODO Auto-generated method stub
-		LoginView loginView = new LoginView();
+	public static void main(String[] args)  {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					LoginView window = new LoginView();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
 	}
 }

@@ -1,9 +1,13 @@
 package com.minet;
+
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+import java.io.IOException;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -77,34 +81,109 @@ public class P2pChatView {
 		gbc_sendButton.gridy = 3;
 		p2pFrame.getContentPane().add(sendButton, gbc_sendButton);
 		p2pFrame.setVisible(true);
-		
+
 		sendButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub 
+				// TODO Auto-generated method stub
 				{
 					Constants.tempID = getP2pViewID();
-					System.out.println("view id="+getP2pViewID());
+					System.out.println("view id=" + getP2pViewID());
 					Constants.message = getMessage();
 					Constants.executor.execute(new ClientThread("p2pSendMeg"));
 					addMessage(Constants.userName + " : " + Constants.message);
 				}
 			}
 		});
-		
+
+		p2pFrame.addWindowListener(new WindowListener() {
+
+			@Override
+			public void windowOpened(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowIconified(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowDeiconified(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowDeactivated(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowClosing(WindowEvent e) {
+				// TODO Auto-generated method stub
+				closeP2pChatView();
+			}
+
+			@Override
+			public void windowClosed(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowActivated(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+		});
 	}
-	
+
 	public String getMessage() {
 		String temp = sendMsgTextArea.getText();
 		sendMsgTextArea.setText("");
 		return temp;
 	}
-	
+
 	public void addMessage(String str) {
-		receiveMsgTextArea.setText(receiveMsgTextArea.getText() + "\n" +  str);
+		receiveMsgTextArea.setText(receiveMsgTextArea.getText() + "\n" + str);
 	}
 
 	public String getP2pViewID() {
 		return p2pFrame.getTitle();
+	}
+
+	public void closeP2pChatView() {
+		p2pFrame.setVisible(false);
+		Constants.tempID = getP2pViewID();
+		Constants.message = "###session terminated";
+		Constants.isSent = false;
+		Constants.executor.execute(new ClientThread("p2pSendMeg"));
+		while(!Constants.isSent);
+		for (int i = 0; i < Constants.p2pChatViewList.size(); i++) {
+			if (Constants.p2pChatViewList.get(i).getP2pViewID()
+					.indexOf(getP2pViewID()) != -1) {
+				Constants.p2pChatViewList.remove(i);
+				break;
+			}
+		}
+		
+		for (User i : Constants.onlineUserList) {
+			if (i.getId().indexOf(getP2pViewID()) != -1 && i.getSocket() != null) {
+				try {
+					i.getSocket().close();
+					System.out.println("socket have closed");
+					i.setSocket(null);
+					break;
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		}
+
 	}
 }

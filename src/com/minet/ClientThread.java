@@ -1,4 +1,5 @@
 package com.minet;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -8,6 +9,8 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+
+import jdk.internal.org.objectweb.asm.tree.IntInsnNode;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -60,7 +63,7 @@ public class ClientThread extends Thread {
 				Constants.tempp2pSocket.getInputStream()));
 		PrintWriter outputWriter = new PrintWriter(
 				Constants.tempp2pSocket.getOutputStream());
-
+		Socket tempSocket = Constants.tempp2pSocket;
 		String temp;
 		while ((temp = inputReader.readLine()) == null)
 			;
@@ -74,28 +77,37 @@ public class ClientThread extends Thread {
 			Constants.tempp2pSocket.close();
 			return;
 		}
-		
+
 		if (user == null) {
 			System.out.println("no such a user");
 			Constants.tempp2pSocket.close();
 			return;
 		}
-		
+
 		user.setSocket(Constants.tempp2pSocket);
 		user.setOutputWriter(outputWriter);
 		user.setInputReader(inputReader);
 
 		outputWriter.println(helper.generateResponse());
 		outputWriter.flush();
-		
+
 		P2pChatView p2pChatView = new P2pChatView(ID);
 		Constants.p2pChatViewList.add(p2pChatView);
-		while (true) {
-			while ((temp = inputReader.readLine()) == null)
-				;
-			Constants.getP2pChatViewById(ID).
-					addMessage(Name + " : " +temp);
+		try {
+			while (!tempSocket.isClosed()) {
+				while ((temp = inputReader.readLine()) == null)
+					;
+				if (temp.indexOf("session terminated")!= -1) {
+					Constants.getP2pChatViewById(ID).closeP2pChatView();
+					return;
+				}
+				Constants.getP2pChatViewById(ID).addMessage(Name + " : " + temp);
+			}	
+		} catch (Exception e) {
+			//Constants.getP2pChatViewById(ID).closeP2pChatView();
 		}
+		
+		
 	}
 
 	private User getUserByID(String id) {
@@ -110,8 +122,9 @@ public class ClientThread extends Thread {
 	private void p2pListener() throws IOException {
 
 		ServerSocket server = new ServerSocket(Constants.p2pListenPort);
-		while (true) {
-			Constants.tempp2pSocket = server.accept();
+		Constants.p2pListenServerSocket = server;
+		while (!server.isClosed()) {
+			Constants.tempp2pSocket = server.accept(); 
 			Constants.executor.execute(new ClientThread("p2pSetUp"));
 		}
 	}
@@ -121,6 +134,7 @@ public class ClientThread extends Thread {
 		PrintWriter outputWriter = user.getOutputWriter();
 		outputWriter.println(Constants.message);
 		outputWriter.flush();
+		Constants.isSent = true;
 	}
 
 	private void p2pChat() throws IOException {
@@ -131,7 +145,7 @@ public class ClientThread extends Thread {
 			System.out.println("you have already p2p chat with this user");
 			return;
 		}
-		System.out.println("p2pchat to " + user.getIP()+ ":" + user.getPort());
+		System.out.println("p2pchat to " + user.getIP() + ":" + user.getPort());
 		Socket p2pSocket = new Socket(user.getIP(), user.getPort());
 		BufferedReader inputReader = new BufferedReader(new InputStreamReader(
 				p2pSocket.getInputStream()));
@@ -152,13 +166,22 @@ public class ClientThread extends Thread {
 		user.setSocket(p2pSocket);
 		user.setOutputWriter(outputWriter);
 		user.setInputReader(inputReader);
-
-		while (true) {
-			while ((temp = inputReader.readLine()) == null)
-				;
-			Constants.getP2pChatViewById(targetId).
-					addMessage(targetName+" : "+temp);
+        try {
+        	while (!p2pSocket.isClosed()) {
+    			while ((temp = inputReader.readLine()) == null)
+    				;
+				if (temp.indexOf("###session terminated")!= -1) {
+					Constants.getP2pChatViewById(targetId).closeP2pChatView();
+					return;
+				}
+    			Constants.getP2pChatViewById(targetId).addMessage(
+    					targetName + " : " + temp);
+    		}	
+		} catch (Exception e) {
+			//Constants.getP2pChatViewById(targetId).closeP2pChatView();
 		}
+		
+		
 	}
 
 	private void chatWithServer() throws IOException {
@@ -217,41 +240,51 @@ public class ClientThread extends Thread {
 		}
 		Constants.threadLoginFlag++;
 
-		while (true) {
+		while (Constants.mainSocket.isConnected()) {
 			while ((temp = inputReader.readLine()) == null)
 				;
-            if (temp.startsWith("From:Server|")) {
-                ProtocolHelper tempHelper = new ProtocolHelper();
-                tempHelper.setInStr(temp);
-                String tempAction = tempHelper.getPara("Action");
-                if( tempAction.indexOf("LoginNotice") != -1) {
-                    Map tempData = tempHelper.getData();
-                    Constants.onlineUserList.add(new User(
-                    		            tempData.get("id").toString(), 
-                                        tempData.get("name").toString(), 
-                                        tempData.get("ip").toString(), 
-                                        Integer.parseInt(tempData.get("port").toString())));
-                    System.out.println("A user have logined, id="+tempData.get("id").toString()+"ip="+tempData.get("ip"));
-                } else if (tempAction.indexOf("LogoutNotice") != -1) {
-                    String id = tempHelper.getData().get("id").toString();
-                    for (int i = 0; i < Constants.onlineUserList.size(); ++i) {
-                        User tempUser = Constants.onlineUserList.get(i);
-                        if (tempUser.getId() == id) {
-                            Socket tempSocket = tempUser.getSocket();
-                            if( tempSocket!= null)  
-                                tempSocket.close();
-                            Constants.onlineUserList.remove(i);
-                            break;
-                        }
-                    }
-                    
-                    System.out.println("A user have logouted");
-                }
-                Constants.clientView.updateUserList();
-             } else {
-                System.out.println(temp);
-                ClientView.addMessage(temp);
-            }
+			if (temp.startsWith("From:Server|")) {
+				ProtocolHelper tempHelper = new ProtocolHelper();
+				tempHelper.setInStr(temp);
+				String tempAction = tempHelper.getPara("Action");
+				if (tempAction.indexOf("LoginNotice") != -1) {
+					Map tempData = tempHelper.getData();
+					Constants.onlineUserList
+							.add(new User(tempData.get("id").toString(),
+									tempData.get("name").toString(), tempData
+											.get("ip").toString(), Integer
+											.parseInt(tempData.get("port")
+													.toString())));
+					/*System.out.println("A user have logined, id="
+							+ tempData.get("id").toString() + "ip="
+							+ tempData.get("ip"));*/
+				} else if (tempAction.indexOf("LogoutNotice") != -1) {
+					String id = tempHelper.getData().get("id").toString();
+
+					for (int i = 0; i < Constants.onlineUserList.size(); ++i) {
+						User tempUser = Constants.onlineUserList.get(i);
+
+						if (tempUser.getId().indexOf(id) != -1) {
+							System.out.println("A user have logouted: id=" + id
+									+ "name=" + tempUser.getName());
+							Socket tempSocket = tempUser.getSocket();
+							if (tempSocket != null)
+								Constants.getP2pChatViewById(id).closeP2pChatView();
+							
+							Constants.onlineUserList.remove(i);
+							break;
+						}
+					}
+
+				}
+				System.out.println(" UserList:****");
+				for (User i : Constants.onlineUserList)
+					System.out.println(i.getName());
+				Constants.clientView.updateUserList();
+			} else {
+				System.out.println(temp);
+				ClientView.addMessage(temp);
+			}
 		}
 	}
 
@@ -277,17 +310,22 @@ public class ClientThread extends Thread {
 		requestData.put("name", Constants.getUserName());
 		requestData.put("id", Constants.myID);
 		helper.setRequestData(requestData);
-
+		Socket tempSocket = new Socket(Constants.serverName, Constants.port);
 		BufferedReader inputReader = new BufferedReader(new InputStreamReader(
-				Constants.mainSocket.getInputStream()));
-		PrintWriter outputWriter = new PrintWriter(
-				Constants.mainSocket.getOutputStream());
+				tempSocket.getInputStream()));
+		PrintWriter outputWriter = new PrintWriter(tempSocket.getOutputStream());
+		System.out.println("sent logout message");
 		outputWriter.println(helper.generateOutStr());
 		outputWriter.flush();
 		String temp;
 		while ((temp = inputReader.readLine()) == null)
 			;
+		System.out.println("server logout ack ----" + temp);
+		inputReader.close();
+		outputWriter.close();
+		tempSocket.close();
 		Constants.mainSocket.close();
+		Constants.p2pListenServerSocket.close();
 	}
 
 	private void broadcast() throws IOException {

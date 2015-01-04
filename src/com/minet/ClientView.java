@@ -1,10 +1,13 @@
 package com.minet;
+
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.util.ArrayList;
 import java.util.Vector;
 
@@ -23,7 +26,8 @@ public class ClientView {
 	private Vector<String> onlineUser;
 	private JList<String> onlineUserJList;
 	private JScrollPane onlineUserListScrollPane;
-	MouseListener mouseListener;
+	private MouseListener mouseListener;
+
 	/**
 	 * Launch the application.
 	 */
@@ -82,7 +86,6 @@ public class ClientView {
 		onlineUserListScrollPane = new JScrollPane();
 		onlineUserListScrollPane.setBounds(380, 37, 104, 283);
 		clientFrame.getContentPane().add(onlineUserListScrollPane);
-		
 
 		JButton sendMsgButton = new JButton("发送");
 		sendMsgButton.setBounds(380, 364, 93, 63);
@@ -104,25 +107,72 @@ public class ClientView {
 				if (e.getClickCount() == 2) {
 					// int index =
 					// onlineUserJList.locationToIndex(e.getPoint());
-					//System.out.println(onlineUserJList.getSelectedValue());
+					// System.out.println(onlineUserJList.getSelectedValue());
 					String info = onlineUserJList.getSelectedValue();
 					String a[] = info.split(":");
-					for (User u:Constants.onlineUserList) {
+					for (User u : Constants.onlineUserList) {
 						if (u.getId() == a[1] && u.getSocket() != null)
 							return;
 					}
 					Constants.tempID = a[1];
 					Constants.executor.execute(new ClientThread("p2pChat"));
-					P2pChatView p2pChatView = new P2pChatView(a[0]);
+					P2pChatView p2pChatView = new P2pChatView(a[1]);
 					Constants.p2pChatViewList.add(p2pChatView);
 				}
 			}
 		};
 		updateUserList();
 
+		clientFrame.addWindowListener(new WindowListener() {
+
+			@Override
+			public void windowOpened(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowIconified(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowDeiconified(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowDeactivated(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowClosing(WindowEvent e) {
+				// TODO Auto-generated method stub
+				Constants.executor.execute(new ClientThread("logout"));
+				clientFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+			}
+
+			@Override
+			public void windowClosed(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void windowActivated(WindowEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+		});
+
 	}
-	
-	public void updateUserList(){
+
+	public void updateUserList() {
 		this.onlineUser = new Vector<>();
 		for (int i = 0; i < Constants.onlineUserList.size(); i++) {
 			User user = Constants.onlineUserList.get(i);
@@ -130,7 +180,7 @@ public class ClientView {
 					+ Constants.onlineUserList.get(i).getId());
 
 		}
-	    this.onlineUserJList = new JList<String>(onlineUser);
+		this.onlineUserJList = new JList<String>(onlineUser);
 		this.onlineUserListScrollPane.setViewportView(onlineUserJList);
 		onlineUserJList.addMouseListener(mouseListener);
 	}

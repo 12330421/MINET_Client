@@ -1,4 +1,5 @@
 package com.minet;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
@@ -9,12 +10,14 @@ public class Constants {
 	public static int port = 4700;
 	public static int threadLoginFlag = 0;
 	public static Socket mainSocket;
+	public static ServerSocket p2pListenServerSocket;
 	public static Socket groupTalkSocket;
 	public static String userName;
 	public static ArrayList<P2pChatView> p2pChatViewList;
 	public static ArrayList<User> onlineUserList;
 	public static ExecutorService executor = Executors.newCachedThreadPool();
 
+	public static Boolean isSent;
 	public static ClientView clientView;
 	public static String myID;
 	public static String tempID;
